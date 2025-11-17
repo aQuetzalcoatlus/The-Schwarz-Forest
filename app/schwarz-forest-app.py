@@ -4,6 +4,7 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import osmnx as ox
+import pandas as pd
 import rasterio
 import streamlit as st
 from matplotlib.colors import ListedColormap
@@ -22,31 +23,44 @@ DATA_DIR = CWD / "data" / "gfc"
 TREE_PATH = DATA_DIR / "Hansen_GFC-2024-v1.12_treecover2000_50N_000E.tif"
 LOSS_PATH = DATA_DIR / "Hansen_GFC-2024-v1.12_lossyear_50N_000E.tif"
 
-LANDMARK_NAMES: list[str] = [
-    "Feldberg, Germany",
-    "Bahnhofplatz, Waldkirch, Waldkirch (Kernstadt), Waldkirch, VVG der Stadt Waldkirch, Landkreis Emmendingen, Baden-Württemberg, 79183, Germany",
-    "Titisee, Black Forest, Germany",
-    "Schluchsee, Black Forest, Germany",
-    "Triberg, Black Forest, Germany",
-    "Belchen, Black Forest, Germany",
-    "Schauinsland, Freiburg im Breisgau, Germany",
-    "Freiburg im Breisgau, Germany",
-]
-
 LANDMARKS_DICT = {
-    # Major peaks of the Black Forest
-    "Feldberg": ("node", 240908624),  # Feldberg peak, highest in Schwarzwald
-    "Schauinsland": ("node", 223671757),  # Schauinsland peak
-    # Lakes (large, iconic)
-    "Titisee": ("node", 3980758466),  # Titisee lake
-    "Schluchsee": ("node", 100158442),  # Schluchsee lake
-    # Towns / settlements
-    "Freiburg im Breisgau": ("node", 21769883),
-    "Waldkirch": ("node", 13069744919),
-    "Kirchzarten": ("node", 2394885847),
-    # Tourist locality
-    "Triberg": ("node", 3330068297),  # famous waterfalls town
+    # label           # geocoding query string
+    "Feldberg": "Feldberg peak, Schwarzwald, Baden-Württemberg, Germany",
+    "Schauinsland": "Schauinsland, Baden-Württemberg, Germany",
+    "Titisee": "Titisee lake, Baden-Württemberg, Germanyy",
+    "Schluchsee": "Schluchsee lake, Black Forest, Germany",
+    "Freiburg im Breisgau": "Freiburg im Breisgau, Germany",
+    "Waldkirch": "Waldkirch, Baden-Württemberg, Germany",
+    "Kirchzarten": "Kirchzarten, Baden-Württemberg, Germany",
+    "Triberg": "Triberg, Black Forest, Germany",
 }
+
+
+# LANDMARKS_DICT = {
+#     # Major peaks of the Black Forest
+#     "Feldberg": ("node", 240908624),  # Feldberg peak, highest in Schwarzwald
+#     "Schauinsland": ("node", 223671757),  # Schauinsland peak
+#     # Lakes (large, iconic)
+#     "Titisee": ("node", 3980758466),  # Titisee lake
+#     "Schluchsee": ("node", 100158442),  # Schluchsee lake
+#     # Towns / settlements
+#     "Freiburg im Breisgau": ("node", 21769883),
+#     "Waldkirch": ("node", 13069744919),
+#     "Kirchzarten": ("node", 2394885847),
+#     # Tourist locality
+#     "Triberg": ("node", 3330068297),  # famous waterfalls town
+# }
+
+
+def geocode_osm_id(osm_type: str, osm_id: int, target_crs) -> gpd.GeoDataFrame:
+    """
+    Fetch a single OSM feature by type/id and project to target_crs.
+
+    osm_type: 'node', 'way', or 'relation'
+    osm_id:  OSM integer ID
+    """
+    gdf = ox.geocode_to_gdf(f"{osm_type}/{osm_id}")
+    return gdf.to_crs(target_crs)
 
 
 # ---------------------------
@@ -68,20 +82,54 @@ def load_schwarzwald_boundary(_crs):
     return sw
 
 
+# @st.cache_data(show_spinner=True)
+# def load_landmarks(_crs):
+#     rows = []
+#     for name in LANDMARK_NAMES:
+#         try:
+#             gdf = ox.geocode_to_gdf(name)
+#             gdf = gdf.to_crs(_crs)
+#             gdf["label"] = name.split(",")[0]
+#             rows.append(gdf[["label", "geometry"]])
+#         except Exception:
+#             continue
+#     if not rows:
+#         return gpd.GeoDataFrame(columns=["label", "geometry"], crs=_crs)
+#     landmarks = gpd.GeoDataFrame(pd.concat(rows, ignore_index=True), crs=rows[0].crs)
+#     return landmarks
+
+
 @st.cache_data(show_spinner=True)
 def load_landmarks(_crs):
-    rows = []
-    for name in LANDMARK_NAMES:
+    """
+    Load landmarks from LANDMARKS_DICT using name-based geocoding.
+
+    Returns a GeoDataFrame with columns: ['label', 'geometry'] in _crs.
+    """
+    rows: list[gpd.GeoDataFrame] = []
+
+    for label, query in LANDMARKS_DICT.items():
         try:
-            gdf = ox.geocode_to_gdf(name)
+            gdf = ox.geocode_to_gdf(query)
             gdf = gdf.to_crs(_crs)
-            gdf["label"] = name.split(",")[0]
+
+            # keep just one geometry (first result) and attach our short label
+            gdf = gdf.iloc[[0]][["geometry"]].copy()
+            gdf["label"] = label
+            gdf["geometry"] = gdf.geometry.centroid
             rows.append(gdf[["label", "geometry"]])
-        except Exception:
+        except Exception as e:
+            # you can log this once while debugging:
+            # st.write(f"Failed to geocode {label}: {e}")
             continue
+
     if not rows:
         return gpd.GeoDataFrame(columns=["label", "geometry"], crs=_crs)
-    landmarks = gpd.GeoDataFrame(pd.concat(rows, ignore_index=True), crs=rows[0].crs)
+
+    landmarks = gpd.GeoDataFrame(
+        pd.concat(rows, ignore_index=True),
+        crs=_crs,
+    )
     return landmarks
 
 
@@ -286,6 +334,7 @@ def main():
     window, transform, tree = compute_schwarzwald_window(tree_src, schwarzwald)
     loss = read_loss_in_window(loss_src, window)
     landmarks = load_landmarks(tree_src.crs)
+    st.write("Landmarks loaded:", landmarks)
 
     forest_2000, forest_2024, lost_mask, persistent_mask = compute_masks(
         tree, loss, threshold
@@ -338,6 +387,5 @@ def main():
 
 if __name__ == "__main__":
     # small import needed for concat inside cached function
-    import pandas as pd
 
     main()
