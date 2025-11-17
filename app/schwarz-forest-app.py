@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import altair as alt
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,10 +22,12 @@ from shapely.ops import unary_union
 CWD = Path.cwd()
 print(CWD)
 DATA_DIR = CWD / "data" / "gfc"
-TREE_PATH = DATA_DIR / "treecover_schwarzwald_noDS.tif"
 # TREE_PATH = DATA_DIR / "Hansen_GFC-2024-v1.12_treecover2000_50N_000E.tif"
-LOSS_PATH = DATA_DIR / "lossyear_schwarzwald_noDS.tif"
 # LOSS_PATH = DATA_DIR / "Hansen_GFC-2024-v1.12_lossyear_50N_000E.tif"
+# The above two original files were used to get the "clipped" tif files below. They are too large to be uploaded to git.
+# Locally, this was done in the `test-notebook.ipynb`
+TREE_PATH = DATA_DIR / "treecover_schwarzwald_noDS.tif"
+LOSS_PATH = DATA_DIR / "lossyear_schwarzwald_noDS.tif"
 
 LANDMARKS_DICT = {
     "Feldberg": "Feldberg, Baden-Württemberg, Germany",
@@ -116,6 +119,13 @@ def read_loss_in_window(loss_src, window):
 # ---------------------------
 
 
+def convert_units(value_ha, unit):
+    """Convert a value in hectares to the selected unit."""
+    if unit == "square kilometers (km²)":
+        return value_ha / 100.0  # 1 km² = 100 ha
+    return value_ha  # default: ha
+
+
 def compute_masks(tree, loss, threshold):
     forest_2000 = tree >= threshold
     forest_2024 = (tree >= threshold) & (loss == 0)
@@ -205,22 +215,84 @@ def plot_schwarzwald_map(category_map, transform, schwarzwald_gdf, landmarks):
     return fig
 
 
-def plot_area_bar(area2000, area2024):
-    fig, ax = plt.subplots(figsize=(4, 3), dpi=200)
-    ax.bar(["2000", "2024"], [area2000, area2024], color=["darkgreen", "limegreen"])
-    ax.set_ylabel("Forest area [hectares]")
-    ax.set_title("Forest area in Schwarzwald\n(≥ canopy threshold)")
-    return fig
+# def plot_area_bar(area2000, area2024):
+#     fig, ax = plt.subplots(figsize=(4, 3), dpi=200)
+#     ax.bar(["2000", "2024"], [area2000, area2024], color=["darkgreen", "limegreen"])
+#     ax.set_ylabel("Forest area [hectares]")
+#     ax.set_title("Forest area in Schwarzwald\n(≥ canopy threshold)")
+#     return fig
+def plot_area_bar_interactive(area2000, area2024, unit):
+    # Convert units
+    area2000_u = convert_units(area2000, unit)
+    area2024_u = convert_units(area2024, unit)
+
+    df = pd.DataFrame(
+        {
+            "year": ["2000", "2024"],
+            "area": [area2000_u, area2024_u],
+        }
+    )
+
+    chart = (
+        alt.Chart(df)
+        .mark_bar()
+        .encode(
+            x=alt.X("year:O", title="Year"),
+            y=alt.Y(
+                "area:Q",
+                title=f"Forest area [{unit.split()[0]}]",  # extract ha or km²
+            ),
+            tooltip=[
+                alt.Tooltip("year:O", title="Year"),
+                alt.Tooltip(
+                    "area:Q",
+                    title=f"Forest area ({unit.split()[0]})",
+                    format=",.2f",
+                ),
+            ],
+            color=alt.Color(
+                "year:N", scale=alt.Scale(range=["darkgreen", "limegreen"])
+            ),
+        )
+        .properties(
+            title="Forest area in the Black Forest (≥ canopy threshold)",
+            height=300,
+        )
+        .interactive()
+    )
+
+    return chart
 
 
-def plot_loss_timeseries(years, loss_ha):
-    fig, ax = plt.subplots(figsize=(6, 3), dpi=200)
-    ax.bar(years, loss_ha)
-    ax.set_xlabel("Year")
-    ax.set_ylabel("Forest loss [hectares]")
-    ax.set_title("Annual forest loss in Schwarzwald (Hansen GFC)")
-    ax.grid(axis="y", alpha=0.3)
-    return fig
+def plot_loss_timeseries_interactive(years, loss_ha, unit):
+    loss_u = convert_units(loss_ha, unit)
+
+    df = pd.DataFrame(
+        {
+            "year": years,
+            "loss": loss_u,
+        }
+    )
+
+    chart = (
+        alt.Chart(df)
+        .mark_bar()
+        .encode(
+            x=alt.X("year:O", title="Year"),
+            y=alt.Y("loss:Q", title=f"Forest loss [{unit.split()[0]}]"),
+            tooltip=[
+                alt.Tooltip("year:O", title="Year"),
+                alt.Tooltip("loss:Q", title=f"Loss ({unit.split()[0]})", format=",.2f"),
+            ],
+        )
+        .properties(
+            title="Annual forest loss in Schwarzwald (Hansen GFC)",
+            height=300,
+        )
+        .interactive()
+    )
+
+    return chart
 
 
 # ---------------------------
@@ -277,12 +349,19 @@ def main():
         help="Pixels with tree cover above this value in 2000 are treated as forest.",
     )
 
+    unit = st.sidebar.radio(
+        "Display units",
+        options=["hectares (ha)", "square kilometers (km²)"],
+        index=0,
+        help="Choose whether to show forest area in hectares or square kilometers.",
+    )
+
     tree_src, loss_src = load_rasters()
     schwarzwald = load_schwarzwald_boundary(tree_src.crs)
     window, transform, tree = compute_schwarzwald_window(tree_src, schwarzwald)
     loss = read_loss_in_window(loss_src, window)
     landmarks = load_landmarks(tree_src.crs)
-    st.write("Landmarks loaded:", landmarks)
+    # st.write("Landmarks loaded:", landmarks)
 
     forest_2000, forest_2024, lost_mask, persistent_mask = compute_masks(
         tree, loss, threshold
@@ -292,6 +371,9 @@ def main():
         forest_2000, forest_2024
     )
     years, loss_ha = compute_loss_timeseries(loss, forest_2000)
+
+    # Year with the greatest loss
+    correct_year = int(years[np.argmax(loss_ha)])
 
     # ---------------- Map ----------------
     st.markdown("## Map: forest change in the Black Forest")
@@ -305,14 +387,15 @@ def main():
     st.pyplot(fig_map, width="stretch")
 
     # ---------------- Analyses ----------------
-    st.markdown("## Simple analyses")
+    st.markdown("## From the data:")
 
     col1, col2 = st.columns(2)
 
     with col1:
         st.markdown("### Forest area 2000 vs 2024")
-        fig_area = plot_area_bar(area2000, area2024)
-        st.pyplot(fig_area, width="stretch")
+        chart_area = plot_area_bar_interactive(area2000, area2024, unit)
+        st.altair_chart(chart_area, use_container_width=True)
+
         st.write(
             f"- 2000 forest area: **{area2000:,.0f} ha**  \n"
             f"- 2024 forest area: **{area2024:,.0f} ha**  \n"
@@ -321,8 +404,30 @@ def main():
 
     with col2:
         st.markdown("### Annual forest loss (2001-2024)")
-        fig_ts = plot_loss_timeseries(years, loss_ha)
-        st.pyplot(fig_ts, width="stretch")
+        chart_ts = plot_loss_timeseries_interactive(years, loss_ha, unit)
+        st.altair_chart(chart_ts, use_container_width=True)
+
+        st.markdown("### Mini quiz")
+
+        selected_year = st.slider(
+            "From the above chart, identify the year with the greatest forest loss",
+            min_value=int(years[0]),
+            max_value=int(years[-1]),
+            value=int(years[0]),
+            step=1,
+            key="quiz_year",
+        )
+
+        if st.button("Submit answer", key="quiz_submit"):
+            if selected_year == correct_year:
+                st.balloons()
+                st.success(
+                    f"✅ Correct! The highest forest loss in this dataset is in **{correct_year}**. This matches with the results described in this study: https://kommunikation.uni-freiburg.de/pm-en/press-releases-2023/tree-mortality-in-the-black-forest-on-the-rise-climate-change-a-key-driver"
+                )
+            else:
+                st.error(
+                    f"Not quite. Try again! (Hint: Hover over each bar in the chart to see the forest loss that year.)"
+                )
 
     st.markdown(
         """
