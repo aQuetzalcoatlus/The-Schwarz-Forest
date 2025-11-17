@@ -11,6 +11,7 @@ from matplotlib.colors import ListedColormap
 from rasterio.mask import mask
 from rasterio.plot import show as rio_show
 from rasterio.windows import from_bounds
+from shapely.geometry import Point
 from shapely.ops import unary_union
 
 # ---------------------------
@@ -20,47 +21,21 @@ from shapely.ops import unary_union
 CWD = Path.cwd()
 print(CWD)
 DATA_DIR = CWD / "data" / "gfc"
-TREE_PATH = DATA_DIR / "Hansen_GFC-2024-v1.12_treecover2000_50N_000E.tif"
-LOSS_PATH = DATA_DIR / "Hansen_GFC-2024-v1.12_lossyear_50N_000E.tif"
+TREE_PATH = DATA_DIR / "treecover_schwarzwald_noDS.tif"
+# TREE_PATH = DATA_DIR / "Hansen_GFC-2024-v1.12_treecover2000_50N_000E.tif"
+LOSS_PATH = DATA_DIR / "lossyear_schwarzwald_noDS.tif"
+# LOSS_PATH = DATA_DIR / "Hansen_GFC-2024-v1.12_lossyear_50N_000E.tif"
 
 LANDMARKS_DICT = {
-    # label           # geocoding query string
-    "Feldberg": "Feldberg peak, Schwarzwald, Baden-Württemberg, Germany",
-    "Schauinsland": "Schauinsland, Baden-Württemberg, Germany",
-    "Titisee": "Titisee lake, Baden-Württemberg, Germanyy",
-    "Schluchsee": "Schluchsee lake, Black Forest, Germany",
+    "Feldberg": "Feldberg, Baden-Württemberg, Germany",
+    "Schauinsland": "Schauinsland, Freiburg im Breisgau, Germany",
+    "Titisee": "Titisee, Titisee-Neustadt, Germany",
+    "Schluchsee": "Schluchsee, Baden-Württemberg, Germany",
     "Freiburg im Breisgau": "Freiburg im Breisgau, Germany",
     "Waldkirch": "Waldkirch, Baden-Württemberg, Germany",
     "Kirchzarten": "Kirchzarten, Baden-Württemberg, Germany",
-    "Triberg": "Triberg, Black Forest, Germany",
+    "Triberg": "Triberg im Schwarzwald, Germany",
 }
-
-
-# LANDMARKS_DICT = {
-#     # Major peaks of the Black Forest
-#     "Feldberg": ("node", 240908624),  # Feldberg peak, highest in Schwarzwald
-#     "Schauinsland": ("node", 223671757),  # Schauinsland peak
-#     # Lakes (large, iconic)
-#     "Titisee": ("node", 3980758466),  # Titisee lake
-#     "Schluchsee": ("node", 100158442),  # Schluchsee lake
-#     # Towns / settlements
-#     "Freiburg im Breisgau": ("node", 21769883),
-#     "Waldkirch": ("node", 13069744919),
-#     "Kirchzarten": ("node", 2394885847),
-#     # Tourist locality
-#     "Triberg": ("node", 3330068297),  # famous waterfalls town
-# }
-
-
-def geocode_osm_id(osm_type: str, osm_id: int, target_crs) -> gpd.GeoDataFrame:
-    """
-    Fetch a single OSM feature by type/id and project to target_crs.
-
-    osm_type: 'node', 'way', or 'relation'
-    osm_id:  OSM integer ID
-    """
-    gdf = ox.geocode_to_gdf(f"{osm_type}/{osm_id}")
-    return gdf.to_crs(target_crs)
 
 
 # ---------------------------
@@ -82,23 +57,6 @@ def load_schwarzwald_boundary(_crs):
     return sw
 
 
-# @st.cache_data(show_spinner=True)
-# def load_landmarks(_crs):
-#     rows = []
-#     for name in LANDMARK_NAMES:
-#         try:
-#             gdf = ox.geocode_to_gdf(name)
-#             gdf = gdf.to_crs(_crs)
-#             gdf["label"] = name.split(",")[0]
-#             rows.append(gdf[["label", "geometry"]])
-#         except Exception:
-#             continue
-#     if not rows:
-#         return gpd.GeoDataFrame(columns=["label", "geometry"], crs=_crs)
-#     landmarks = gpd.GeoDataFrame(pd.concat(rows, ignore_index=True), crs=rows[0].crs)
-#     return landmarks
-
-
 @st.cache_data(show_spinner=True)
 def load_landmarks(_crs):
     """
@@ -110,17 +68,18 @@ def load_landmarks(_crs):
 
     for label, query in LANDMARKS_DICT.items():
         try:
-            gdf = ox.geocode_to_gdf(query)
-            gdf = gdf.to_crs(_crs)
+            # ox.geocode returns (lat, lon) tuple
+            lat, lon = ox.geocode(query)
 
-            # keep just one geometry (first result) and attach our short label
-            gdf = gdf.iloc[[0]][["geometry"]].copy()
-            gdf["label"] = label
-            gdf["geometry"] = gdf.geometry.centroid
+            gdf = gpd.GeoDataFrame(
+                {"label": [label]},
+                geometry=[Point(lon, lat)],  # shapely wants (x=lon, y=lat)
+                crs="EPSG:4326",
+            ).to_crs(_crs)
+
             rows.append(gdf[["label", "geometry"]])
         except Exception as e:
-            # you can log this once while debugging:
-            # st.write(f"Failed to geocode {label}: {e}")
+            st.write(f"Geocoding FAILED for {label!r} with query {query!r}: {e}")
             continue
 
     if not rows:
@@ -204,7 +163,7 @@ def compute_loss_timeseries(loss, forest_2000):
 
 
 def plot_schwarzwald_map(category_map, transform, schwarzwald_gdf, landmarks):
-    fig, ax = plt.subplots(figsize=(6, 8), dpi=200)
+    fig, ax = plt.subplots(figsize=(3 * 1.5, 4 * 1.5), dpi=200)
     rio_show(
         category_map,
         transform=transform,
@@ -214,33 +173,22 @@ def plot_schwarzwald_map(category_map, transform, schwarzwald_gdf, landmarks):
     schwarzwald_gdf.boundary.plot(ax=ax, edgecolor="black", linewidth=1.0)
 
     if (landmarks is not None) and (len(landmarks) > 0):
-        # sw_union = schwarzwald_gdf.unary_union
-        # landmarks_in = landmarks[landmarks.geometry.intersects(sw_union)]
+        landmark_points = landmarks.copy()  # no centroid line
 
-        if not landmarks.empty:
-            # 👉 convert everything to point centroids BEFORE plotting
-            # landmark_points = landmarks_in.copy()
-            landmark_points = landmarks.copy()
-            landmark_points["geometry"] = landmark_points.geometry.centroid
+        landmark_points.plot(ax=ax, color="purple", marker="x", markersize=10, zorder=4)
 
-            # small point markers, no polygons
-            landmark_points.plot(
-                ax=ax, color="purple", marker="x", markersize=2, zorder=4
+        for _, row in landmark_points.iterrows():
+            pt = row.geometry
+            ax.annotate(
+                row["label"],
+                xy=(pt.x, pt.y),
+                xytext=(3, 3),
+                textcoords="offset points",
+                fontsize=4,
+                color="black",
+                bbox=dict(facecolor="white", alpha=0.7, edgecolor="none", pad=0.5),
+                zorder=5,
             )
-
-            # labels at the same centroids
-            for _, row in landmark_points.iterrows():
-                pt = row.geometry
-                ax.annotate(
-                    row["label"],
-                    xy=(pt.x, pt.y),
-                    xytext=(3, 3),
-                    textcoords="offset points",
-                    fontsize=7,
-                    color="black",
-                    bbox=dict(facecolor="white", alpha=0.7, edgecolor="none", pad=0.5),
-                    zorder=5,
-                )
 
     # lock view to Schwarzwald
     minx, miny, maxx, maxy = schwarzwald_gdf.total_bounds
@@ -296,8 +244,8 @@ def main():
 
         - `treecover2000` - tree canopy cover (%) in the year 2000  
         - `lossyear` - year of forest loss, where  
-          - 0 = no loss detected  
-          - 1 = loss in 2001, 2 = loss in 2002, ..., 24 = loss in 2024  
+            - 0 = no loss detected  
+            - 1 = loss in 2001, 2 = loss in 2002, ..., 24 = loss in 2024  
 
         A pixel is considered **forest** if its canopy cover is above a chosen threshold.
         Forest is considered **lost** if it was forest in 2000 and has a non-zero loss year.

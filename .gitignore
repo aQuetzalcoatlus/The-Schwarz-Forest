@@ -12,3 +12,7 @@ wheels/
 .code-workspace
 test_data/
 .archive/
+data/gfc/Hansen_GFC-2024-v1.12_lossyear_10N_070E.tif
+data/gfc/Hansen_GFC-2024-v1.12_lossyear_50N_000E.tif
+data/gfc/Hansen_GFC-2024-v1.12_treecover2000_10N_070E.tif
+data/gfc/Hansen_GFC-2024-v1.12_treecover2000_50N_000E.tif
