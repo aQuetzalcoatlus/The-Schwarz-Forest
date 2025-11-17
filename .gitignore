@@ -11,3 +11,4 @@ wheels/
 
 .code-workspace
 test_data/
+.archive/
