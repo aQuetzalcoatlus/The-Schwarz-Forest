@@ -5,6 +5,12 @@
 This project provides an interactive dashboard for exploring long-term forest change in the **Schwarzwald (Black Forest)** using the [https://storage.googleapis.com/earthenginepartners-hansen/GFC-2024-v1.12/download.html](Hansen Global Forest Change (GFC 2024 v1.12) dataset).
 The app visualizes forest cover and forest loss, shows simple statistics describing forest dynamics over the last two decades.
 
+<div style="background-color:#e8f4ff; padding:10px 12px; border-radius:6px; border:1px solid #c4ddff; margin-bottom:16px;">
+  <strong>Live app:</strong>
+  <a href="https://the-schwarz-forest.streamlit.app/" target="_blank">
+    https://the-schwarz-forest.streamlit.app/
+  </a>
+</div>
 ---
 
 ## 🚀 Features
