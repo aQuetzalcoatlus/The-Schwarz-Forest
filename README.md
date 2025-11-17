@@ -5,12 +5,8 @@
 This project provides an interactive dashboard for exploring long-term forest change in the **Schwarzwald (Black Forest)** using the [Hansen Global Forest Change (GFC 2024 v1.12) dataset](https://storage.googleapis.com/earthenginepartners-hansen/GFC-2024-v1.12/download.html).
 The app visualizes forest cover and forest loss, shows simple statistics describing forest dynamics over the last two decades.
 
-<div style="background-color:#e8f4ff; padding:10px 12px; border-radius:6px; border:1px solid #c4ddff; margin-bottom:16px;">
-  <strong>Live app:</strong>
-  <a href="https://the-schwarz-forest.streamlit.app/" target="_blank">
-    https://the-schwarz-forest.streamlit.app/
-  </a>
-</div>
+> [!IMPORTANT]
+> **Live App:** https://the-schwarz-forest.streamlit.app/
 ---
 
 ## 🚀 Features
@@ -55,7 +51,7 @@ Clipping was performed using `rasterio.mask.mask()`.
 
 ---
 
-## 🧱 Technical stack
+## Technical stack
 
 * **Streamlit** - application framework
 * **Rasterio** - raster I/O and spatial masking
@@ -67,7 +63,7 @@ Clipping was performed using `rasterio.mask.mask()`.
 
 ---
 
-## ▶️ Running the app
+## Running the app
 
 ### 1. Clone the repo
 
@@ -106,7 +102,7 @@ The app will open automatically in your browser.
 
 ---
 
-## 📘 Notes on reproducibility
+## Notes on reproducibility
 
 * All clipped GeoTIFFs were produced from official GFC 2024 v1.12 sources.
 * Landmarks are geocoded dynamically via OpenStreetMap; exact coordinates may change over time.
