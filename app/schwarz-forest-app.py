@@ -302,18 +302,57 @@ def main():
         """
         ## Data source
 
-        This app uses the **Hansen Global Forest Change (GFC 2024 v1.12)** dataset,
-        derived from Landsat satellite imagery at 30 m resolution.
+        The forest maps in this app are based on the **Hansen Global Forest Change (GFC 2024 v1.12)** dataset.
+        Each dataset is stored as a **GeoTIFF raster**, which works like a huge grid laid over the landscape:
+
+        - Each **pixel corresponds to a 30×30 metre area** on the ground (900 m² = 0.09 ha).
+        - Pixel values encode properties of that exact piece of land.
+
+        To reduce file size, the original global tiles were clipped locally to the Schwarzwald region before use in this app.
+        This clipping is *lossless*: **pixel values, resolution, and CRS remain identical to the original data**.
 
         We use two raster files for the tile covering the Black Forest (Schwarzwald):
 
-        - `treecover2000` - tree canopy cover (%) in the year 2000  
-        - `lossyear` - year of forest loss, where  
-            - 0 = no loss detected  
-            - 1 = loss in 2001, 2 = loss in 2002, ..., 24 = loss in 2024  
+        ### 1. `treecover2000`: Tree canopy cover in the year 2000
 
-        A pixel is considered **forest** if its canopy cover is above a chosen threshold.
-        Forest is considered **lost** if it was forest in 2000 and has a non-zero loss year.
+        Each pixel contains a value between **0 and 100**, representing:
+
+        **Percentage of tree canopy cover in 2000**
+
+        * `0` → no tree cover
+        * `25` → 25% canopy
+        * `80` → dense forest
+
+        A pixel is classified as “forest” if its canopy cover is **above the selected threshold**.
+
+
+        ### 2. `lossyear`: Year of forest loss (2001-2024)
+
+        Each pixel contains an integer between **0 and 24**:
+
+        * `0` → no forest loss detected
+        * `1` → loss in **2001**
+        * `2` → loss in **2002**
+        * …
+        * `24` → loss in **2024**
+
+        A pixel is counted as **forest lost** only if:
+
+        1. It was forest in 2000 (above threshold), **and**
+        2. `lossyear` is non-zero.
+
+        ---
+
+        ## Pixel area and unit conversions
+
+        Because each pixel represents **0.09 hectares**, the app can compute total forest area and loss by simply counting pixels and converting them into:
+
+        * **hectares (ha)** — standard in forestry
+        * **square kilometres (km²)** — SI-derived unit (1 km² = 100 ha)
+
+        The user can switch between these units in the sidebar.
+
+        ---
         """
     )
 
@@ -321,13 +360,15 @@ def main():
         """
         ## Processing steps (overview)
 
-        To create the map and statistics, the app:
+        To create the forest change maps and analyses, the app performs the following steps:
 
-        1. Downloads the **Schwarzwald boundary** from OpenStreetMap.  
-        2. Crops the Hansen rasters to the Schwarzwald area.  
-        3. Applies a **canopy threshold** to define forest in 2000.  
-        4. Marks pixels that stayed forest (no loss) vs pixels that lost forest (2001-2024).  
-        5. Calculates forest area and yearly loss, and visualizes them in maps and charts.  
+        1. **Load the Schwarzwald boundary** from OpenStreetMap and project it to match the rasters.
+        2. **Load the clipped Hansen rasters** (identical to the original data, just spatially trimmed).
+        3. **Classify forest in the year 2000** by applying a user-selected canopy threshold.
+        4. **Determine forest persistence or loss** by comparing treecover2000 with lossyear
+        (0 = no loss, 1-24 = year of loss from 2001-2024).
+        5. **Calculate forest area and area lost** by counting pixels and converting to ha or km².
+        6. Generate visualizations.
         """
     )
 
