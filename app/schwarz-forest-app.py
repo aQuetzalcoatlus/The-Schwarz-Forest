@@ -119,11 +119,15 @@ def read_loss_in_window(loss_src, window):
 # ---------------------------
 
 
-def convert_units(value_ha, unit):
+def convert_units(value_ha, unit_key: str):
     """Convert a value in hectares to the selected unit."""
-    if unit == "square kilometers (km²)":
+    if unit_key == "km²":
         return value_ha / 100.0  # 1 km² = 100 ha
-    return value_ha  # default: ha
+    return value_ha  # "ha" case
+
+
+def unit_label(unit_key: str) -> str:
+    return "ha" if unit_key == "ha" else "km²"
 
 
 def compute_masks(tree, loss, threshold):
@@ -215,16 +219,11 @@ def plot_schwarzwald_map(category_map, transform, schwarzwald_gdf, landmarks):
     return fig
 
 
-# def plot_area_bar(area2000, area2024):
-#     fig, ax = plt.subplots(figsize=(4, 3), dpi=200)
-#     ax.bar(["2000", "2024"], [area2000, area2024], color=["darkgreen", "limegreen"])
-#     ax.set_ylabel("Forest area [hectares]")
-#     ax.set_title("Forest area in Schwarzwald\n(≥ canopy threshold)")
-#     return fig
-def plot_area_bar_interactive(area2000, area2024, unit):
+def plot_area_bar_interactive(area2000, area2024, unit_key: str):
     # Convert units
-    area2000_u = convert_units(area2000, unit)
-    area2024_u = convert_units(area2024, unit)
+    area2000_u = convert_units(area2000, unit_key)
+    area2024_u = convert_units(area2024, unit_key)
+    label = unit_label(unit_key)
 
     df = pd.DataFrame(
         {
@@ -238,17 +237,10 @@ def plot_area_bar_interactive(area2000, area2024, unit):
         .mark_bar()
         .encode(
             x=alt.X("year:O", title="Year"),
-            y=alt.Y(
-                "area:Q",
-                title=f"Forest area [{unit.split()[0]}]",  # extract ha or km²
-            ),
+            y=alt.Y("area:Q", title=f"Forest area [{label}]"),
             tooltip=[
                 alt.Tooltip("year:O", title="Year"),
-                alt.Tooltip(
-                    "area:Q",
-                    title=f"Forest area ({unit.split()[0]})",
-                    format=",.2f",
-                ),
+                alt.Tooltip("area:Q", title=f"Forest area ({label})", format=",.2f"),
             ],
             color=alt.Color(
                 "year:N", scale=alt.Scale(range=["darkgreen", "limegreen"])
@@ -264,8 +256,9 @@ def plot_area_bar_interactive(area2000, area2024, unit):
     return chart
 
 
-def plot_loss_timeseries_interactive(years, loss_ha, unit):
-    loss_u = convert_units(loss_ha, unit)
+def plot_loss_timeseries_interactive(years, loss_ha, unit_key: str):
+    loss_u = convert_units(loss_ha, unit_key)
+    label = unit_label(unit_key)
 
     df = pd.DataFrame(
         {
@@ -279,10 +272,10 @@ def plot_loss_timeseries_interactive(years, loss_ha, unit):
         .mark_bar()
         .encode(
             x=alt.X("year:O", title="Year"),
-            y=alt.Y("loss:Q", title=f"Forest loss [{unit.split()[0]}]"),
+            y=alt.Y("loss:Q", title=f"Forest loss [{label}]"),
             tooltip=[
                 alt.Tooltip("year:O", title="Year"),
-                alt.Tooltip("loss:Q", title=f"Loss ({unit.split()[0]})", format=",.2f"),
+                alt.Tooltip("loss:Q", title=f"Loss ({label})", format=",.2f"),
             ],
         )
         .properties(
@@ -349,10 +342,13 @@ def main():
         help="Pixels with tree cover above this value in 2000 are treated as forest.",
     )
 
-    unit = st.sidebar.radio(
+    unit: str = st.sidebar.radio(
         "Display units",
-        options=["hectares (ha)", "square kilometers (km²)"],
+        options=["ha", "km²"],
         index=0,
+        format_func=lambda u: "hectares (ha)"
+        if u == "ha"
+        else "square kilometers (km²)",
         help="Choose whether to show forest area in hectares or square kilometers.",
     )
 
@@ -396,10 +392,17 @@ def main():
         chart_area = plot_area_bar_interactive(area2000, area2024, unit)
         st.altair_chart(chart_area, use_container_width=True)
 
+        label = unit_label(unit)
+
+        area2000_u = convert_units(area2000, unit)
+        area2024_u = convert_units(area2024, unit)
+        lost_area_u = convert_units(lost_area, unit)
+
         st.write(
-            f"- 2000 forest area: **{area2000:,.0f} ha**  \n"
-            f"- 2024 forest area: **{area2024:,.0f} ha**  \n"
-            f"- Forest lost: **{lost_area:,.0f} ha** (**{lost_pct:.1f}%**)"
+            f"- 2000 forest area: **{area2000_u:,.2f} {label}**  \n"
+            f"- 2024 forest area: **{area2024_u:,.2f} {label}**  \n"
+            f"- Forest lost: **{lost_area_u:,.2f} {label}** "
+            f"(**{lost_pct:.1f}%** of 2000 forest)"
         )
 
     with col2:
