@@ -2,7 +2,7 @@
 
 *A Streamlit application for visualizing forest dynamics in Germany’s Black Forest (2000-2024)*
 
-This project provides an interactive dashboard for exploring long-term forest change in the **Schwarzwald (Black Forest)** using the [https://storage.googleapis.com/earthenginepartners-hansen/GFC-2024-v1.12/download.html](Hansen Global Forest Change (GFC 2024 v1.12) dataset).
+This project provides an interactive dashboard for exploring long-term forest change in the **Schwarzwald (Black Forest)** using the [Hansen Global Forest Change (GFC 2024 v1.12) dataset](https://storage.googleapis.com/earthenginepartners-hansen/GFC-2024-v1.12/download.html).
 The app visualizes forest cover and forest loss, shows simple statistics describing forest dynamics over the last two decades.
 
 <div style="background-color:#e8f4ff; padding:10px 12px; border-radius:6px; border:1px solid #c4ddff; margin-bottom:16px;">
