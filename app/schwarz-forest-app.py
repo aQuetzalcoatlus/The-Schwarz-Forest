@@ -412,6 +412,9 @@ def main():
     # Year with the greatest loss
     correct_year = int(years[np.argmax(loss_ha)])
 
+    st.warning(
+        "⚠️ If you don't see a map below, please wait a few seconds for it to get loaded."
+    )
     # ---------------- Map ----------------
     st.markdown("## Map: forest change in the Black Forest")
     st.write(
