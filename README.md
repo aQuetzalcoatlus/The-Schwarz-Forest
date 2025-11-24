@@ -31,6 +31,7 @@ The app visualizes forest cover and forest loss, shows simple statistics describ
 The Hansen dataset provides global 30 m resolution `.tif` tiles.
 To keep file sizes manageable in this repository:
 
+### Pre-processing
 * The full 10° × 10° source rasters were **clipped locally** to the Schwarzwald region.
 * Clipping is **lossless**:
 
