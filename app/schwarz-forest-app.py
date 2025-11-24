@@ -296,6 +296,12 @@ def plot_loss_timeseries_interactive(years, loss_ha, unit_key: str):
 def main():
     st.set_page_config(page_title="Schwarzwald Forest Change Explorer", layout="wide")
 
+    st.image(
+        "./resources/Repo_image.png",
+        caption="Schwarzwald Forest Change Explorer",
+        width=700,
+    )
+
     st.title("Schwarzwald Forest Change Explorer (2000-2024)")
 
     st.markdown(

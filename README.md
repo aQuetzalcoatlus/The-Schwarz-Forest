@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./resources/Repo_image.png" width="500"/>
+</p>
+
 # Schwarzwald Forest Change Explorer
 
 *A Streamlit application for visualizing forest dynamics in Germany’s Black Forest (2000-2024)*
