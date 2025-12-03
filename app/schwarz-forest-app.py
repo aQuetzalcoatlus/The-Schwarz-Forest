@@ -312,7 +312,7 @@ def main():
         The forest maps in this app are based on the **Hansen Global Forest Change (GFC 2024 v1.12)** dataset.
         Each dataset is stored as a **GeoTIFF raster**, which works like a huge grid laid over the landscape:
 
-        - Each **pixel corresponds to a 30×30 metre area** on the ground (900 m² = 0.09 ha).
+        - Each **pixel corresponds to a 30x30 metre area** on the ground (900 m² = 0.09 ha).
         - Pixel values encode properties of that exact piece of land.
 
         To reduce file size, the original global tiles were clipped locally to the Schwarzwald region before use in this app.
@@ -330,7 +330,7 @@ def main():
         * `25` → 25% canopy
         * `80` → dense forest
 
-        A pixel is classified as “forest” if its canopy cover is **above the selected threshold**.
+        A pixel is classified as "forest" if its canopy cover is **above the selected threshold**.
 
 
         ### 2. `lossyear`: Year of forest loss (2001-2024)
