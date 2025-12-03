@@ -20,8 +20,9 @@ from shapely.ops import unary_union
 # ---------------------------
 
 CWD = Path.cwd()
-print(CWD)
+# print(CWD)
 DATA_DIR = CWD / "data" / "gfc"
+
 # TREE_PATH = DATA_DIR / "Hansen_GFC-2024-v1.12_treecover2000_50N_000E.tif"
 # LOSS_PATH = DATA_DIR / "Hansen_GFC-2024-v1.12_lossyear_50N_000E.tif"
 # The above two original files were used to get the "clipped" tif files below. They are too large to be uploaded to git.
@@ -54,14 +55,14 @@ def load_rasters() -> tuple:
 
 
 @st.cache_data(show_spinner=True)
-def load_schwarzwald_boundary(_crs):
-    sw = ox.geocode_to_gdf("Schwarzwald, Germany")
+def load_schwarzwald_boundary(_crs) -> gpd.GeoDataFrame:
+    sw: gpd.GeoDataFrame = ox.geocode_to_gdf("Schwarzwald, Germany")
     sw = sw.to_crs(_crs)
     return sw
 
 
 @st.cache_data(show_spinner=True)
-def load_landmarks(_crs):
+def load_landmarks(_crs) -> gpd.GeoDataFrame:
     """
     Load landmarks from LANDMARKS_DICT using name-based geocoding.
 
@@ -74,7 +75,7 @@ def load_landmarks(_crs):
             # ox.geocode returns (lat, lon) tuple
             lat, lon = ox.geocode(query)
 
-            gdf = gpd.GeoDataFrame(
+            gdf: gpd.GeoDataFrame = gpd.GeoDataFrame(
                 {"label": [label]},
                 geometry=[Point(lon, lat)],  # shapely wants (x=lon, y=lat)
                 crs="EPSG:4326",
