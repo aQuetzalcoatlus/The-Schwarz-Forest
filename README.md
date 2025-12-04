@@ -13,7 +13,7 @@ The app visualizes forest cover and forest loss, shows simple statistics describ
 > **Live App:** https://the-schwarz-forest.streamlit.app/
 ---
 
-## 🚀 Features
+## Features
 
 * **Interactive forest change map**
   Visualizes persistent forest, forest lost between 2001–2024, and key landmarks across the Schwarzwald.
@@ -30,7 +30,7 @@ The app visualizes forest cover and forest loss, shows simple statistics describ
 
 ---
 
-## 📁 Data workflow
+## Data workflow
 
 The Hansen dataset provides global 30 m resolution `.tif` tiles.
 To keep file sizes manageable in this repository:
