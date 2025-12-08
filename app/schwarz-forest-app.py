@@ -309,7 +309,7 @@ def main():
         """
         ## Data source
 
-        The forest maps in this app are based on the **Hansen Global Forest Change (GFC 2024 v1.12)** dataset.
+        The forest maps in this app are based on the **Hansen Global Forest Change (GFC 2024 v1.12)** dataset (https://storage.googleapis.com/earthenginepartners-hansen/GFC-2024-v1.12/download.html).
         Each dataset is stored as a **GeoTIFF raster**, which works like a huge grid laid over the landscape:
 
         - Each **pixel corresponds to a 30x30 metre area** on the ground (900 m² = 0.09 ha).
