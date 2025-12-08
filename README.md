@@ -11,6 +11,7 @@ The app visualizes forest cover and forest loss, shows simple statistics describ
 
 > [!IMPORTANT]
 > **Live App:** https://the-schwarz-forest.streamlit.app/
+
 > Note: If you see a message like "This app has gone to sleep due to inactivity. Would you like to wake it back up?", please click on the blue button that says "Yes, get this app back up!". 
 ---
 
